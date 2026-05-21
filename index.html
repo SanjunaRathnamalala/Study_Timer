@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sky & Leaf Study Timer</title>
+    
+    <!-- Importing Nunito: A professional, rounded font similar to Comic Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        /* CSS: The Dark Mode Paint */
+        :root {
+            /* Adjusted Sky Blue and Leaf Green to be more vibrant on dark backgrounds */
+            --sky-blue: #38bdf8; 
+            --sky-blue-hover: #0284c7;
+            --leaf-green: #4ade80;
+            --leaf-green-hover: #16a34a;
+            
+            /* Dark Theme Colors */
+            --bg-color: #0f172a;      /* Very dark slate for the main background */
+            --card-bg: #1e293b;       /* Slightly lighter slate for the cards */
+            --input-bg: #334155;      /* Dark input fields */
+            --text-main: #f8fafc;     /* Off-white text for general reading */
+            --text-muted: #94a3b8;    /* Gray text for hints and borders */
+            --number-color: #ffffff;  /* Pure white for the timer numbers */
+        }
+
+        body {
+            /* Applying our new rounded font */
+            font-family: 'Nunito', 'Comic Sans MS', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1, h2 {
+            color: var(--sky-blue);
+            margin-bottom: 10px;
+            font-weight: 900;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .container { grid-template-columns: 2fr 1fr; }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            border-top: 4px solid var(--sky-blue);
+        }
+
+        .card.goals-card {
+            border-top-color: var(--leaf-green);
+        }
+
+        button {
+            background-color: var(--sky-blue);
+            color: #0f172a; /* Dark text on bright button for contrast */
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-family: 'Nunito', sans-serif;
+            transition: all 0.2s;
+        }
+
+        button:hover { background-color: var(--sky-blue-hover); color: white; }
+
+        button.success { background-color: var(--leaf-green); }
+        button.success:hover { background-color: var(--leaf-green-hover); }
+        
+        button.icon-btn {
+            background: none;
+            color: var(--text-muted);
+            padding: 5px;
+            font-size: 1.2rem;
+        }
+        button.icon-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+
+        input, select {
+            padding: 10px;
+            background-color: var(--input-bg);
+            color: var(--text-main);
+            border: 1px solid var(--text-muted);
+            border-radius: 6px;
+            margin-right: 5px;
+            margin-bottom: 10px;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 700;
+        }
+        
+        /* Modify placeholder text color for dark mode */
+        input::placeholder { color: #cbd5e1; }
+
+        /* Timers Grid */
+        .timers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .timer-box {
+            border: 2px solid var(--input-bg);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            background: #273447; /* Slightly distinct background */
+            position: relative;
+        }
+
+        .timer-icon { font-size: 2.5rem; margin-bottom: 5px; }
+        
+        /* The Timer Numbers */
+        .timer-time { 
+            font-size: 2.2rem; 
+            font-weight: 900; 
+            margin: 10px 0; 
+            color: var(--number-color); /* Pure white numbers */
+            font-variant-numeric: tabular-nums; 
+            letter-spacing: 2px;
+        }
+        
+        .timer-actions {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            display: flex;
+            gap: 5px;
+        }
+
+        /* Progress Bars */
+        .goal-item { margin-bottom: 15px; }
+        .progress-container {
+            background-color: var(--input-bg);
+            border-radius: 10px;
+            position: relative;
+            height: 22px;
+            width: 100%;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            background-color: var(--leaf-green);
+            height: 100%;
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.4s ease-out;
+        }
+        .progress-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #0f172a; /* Dark text inside the progress bar for readability */
+            font-weight: 900;
+            line-height: 22px;
+        }
+
+        /* Logs */
+        .log-list { max-height: 200px; overflow-y: auto; list-style-type: none; padding: 0; }
+        .log-list li { padding: 8px 0; border-bottom: 1px solid var(--input-bg); font-size: 0.95rem; color: var(--text-muted); }
+
+        /* Fullscreen Overlay */
+        .fullscreen-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #080c17; /* Even darker for pure focus */
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .fullscreen-time {
+            font-size: 20vw; 
+            font-weight: 900;
+            color: var(--number-color); /* Pure white numbers */
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+        }
+
+        .fullscreen-label {
+            font-size: 3.5rem;
+            color: var(--sky-blue);
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .fullscreen-hint {
+            position: absolute;
+            bottom: 30px;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>⏱️ Sky & Leaf Study Workspace</h1>
+    
+    <div class="container">
+        <!-- LEFT COLUMN: Timers & History -->
+        <div>
+            <div class="card" style="margin-bottom: 20px;">
+                <h2>Add a New Timer</h2>
+                <input type="text" id="timerLabel" placeholder="Label (e.g., Verilog)" style="width: 140px;">
+                <input type="number" id="timerHours" placeholder="Hrs" min="0" value="0" style="width: 50px;">
+                <input type="number" id="timerMinutes" placeholder="Mins" min="0" value="25" style="width: 60px;">
+                <select id="timerIcon">
+                    <option value="💻">💻 Code</option>
+                    <option value="📚">📚 Read</option>
+                    <option value="🔧">🔧 Hardware</option>
+                    <option value="🏊">🏊 Break</option>
+                    <option value="🧠">🧠 Focus</option>
+                </select>
+                <button onclick="addTimer()">Create Timer</button>
+
+                <div class="timers-grid" id="timersContainer"></div>
+            </div>
+
+            <div class="card">
+                <h2>Activity Log & History</h2>
+                <ul class="log-list" id="logContainer"></ul>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Goals Tracker -->
+        <div>
+            <div class="card goals-card">
+                <h2>🎯 Goals & Progress</h2>
+                <input type="text" id="goalName" placeholder="Goal" style="width: 130px;">
+                <input type="number" id="goalTarget" placeholder="Target" min="1" style="width: 60px;">
+                <button class="success" onclick="addGoal()">Add Goal</button>
+
+                <div id="goalsContainer" style="margin-top: 20px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- The Fullscreen Focus View -->
+    <div id="fullscreenOverlay" class="fullscreen-overlay" onclick="closeFullscreen()">
+        <div id="fsLabel" class="fullscreen-label">💻 Label</div>
+        <div id="fsTime" class="fullscreen-time">00:00:00</div>
+        <div class="fullscreen-hint">Click anywhere to exit focus mode</div>
+    </div>
+
+    <script>
+        let timers = [];
+        let goals = [];
+        let logs = [];
+        let activeFullscreenId = null;
+
+        window.onload = function() {
+            if(localStorage.getItem('studyTimer_data')) {
+                const data = JSON.parse(localStorage.getItem('studyTimer_data'));
+                goals = data.goals || [];
+                logs = data.logs || [];
+                renderGoals();
+                renderLogs();
+            }
+            setInterval(updateTimers, 1000);
+        };
+
+        function saveToLocalStorage() {
+            const data = { goals, logs };
+            localStorage.setItem('studyTimer_data', JSON.stringify(data));
+        }
+
+        // --- TIMER LOGIC ---
+        function addTimer() {
+            const label = document.getElementById('timerLabel').value || 'Study Session';
+            const hrs = parseInt(document.getElementById('timerHours').value) || 0;
+            const mins = parseInt(document.getElementById('timerMinutes').value) || 0;
+            const icon = document.getElementById('timerIcon').value;
+
+            const totalSecs = (hrs * 3600) + (mins * 60);
+
+            if (totalSecs <= 0) {
+                alert("Please enter a valid time greater than 0.");
+                return;
+            }
+
+            const newTimer = {
+                id: Date.now(),
+                label: label,
+                icon: icon,
+                totalSeconds: totalSecs,
+                remainingSeconds: totalSecs,
+                isRunning: false
+            };
+
+            timers.push(newTimer);
+            renderTimers();
+            
+            document.getElementById('timerLabel').value = '';
+            document.getElementById('timerHours').value = '0';
+            document.getElementById('timerMinutes').value = '25';
+        }
+
+        function toggleTimer(id) {
+            const timer = timers.find(t => t.id === id);
+            if (timer) timer.isRunning = !timer.isRunning;
+            renderTimers();
+        }
+
+        function deleteTimer(id) {
+            timers = timers.filter(t => t.id !== id);
+            if (activeFullscreenId === id) closeFullscreen();
+            renderTimers();
+        }
+
+        function updateTimers() {
+            let changesMade = false;
+            timers.forEach(timer => {
+                if (timer.isRunning && timer.remainingSeconds > 0) {
+                    timer.remainingSeconds--;
+                    changesMade = true;
+                    
+                    if (timer.remainingSeconds === 0) {
+                        timer.isRunning = false;
+                        
+                        const h = Math.floor(timer.totalSeconds / 3600);
+                        const m = Math.floor((timer.totalSeconds % 3600) / 60);
+                        const durationStr = h > 0 ? `${h}h ${m}m` : `${m} mins`;
+                        
+                        logActivity(`Completed: ${timer.icon} ${timer.label} (${durationStr})`);
+                        
+                        if (activeFullscreenId === timer.id) {
+                            closeFullscreen();
+                        }
+                        
+                        alert(`⏰ Timer Finished: ${timer.label}!`);
+                    }
+                }
+            });
+            
+            if (changesMade || timers.length > 0) {
+                renderTimers();
+            }
+
+            if (activeFullscreenId !== null) {
+                updateFullscreenView();
+            }
+        }
+
+        function renderTimers() {
+            const container = document.getElementById('timersContainer');
+            container.innerHTML = '';
+
+            timers.forEach(t => {
+                const timeString = formatTime(t.remainingSeconds);
+
+                const div = document.createElement('div');
+                div.className = 'timer-box';
+                div.innerHTML = `
+                    <div class="timer-actions">
+                        <button class="icon-btn" title="Focus Mode" onclick="openFullscreen(${t.id})">⛶</button>
+                        <button class="icon-btn" title="Delete" onclick="deleteTimer(${t.id})">✖</button>
+                    </div>
+                    <div class="timer-icon">${t.icon}</div>
+                    <strong>${t.label}</strong>
+                    <div class="timer-time">${timeString}</div>
+                    <button onclick="toggleTimer(${t.id})">${t.isRunning ? 'Pause' : 'Start'}</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function formatTime(totalSeconds) {
+            const h = Math.floor(totalSeconds / 3600);
+            const m = Math.floor((totalSeconds % 3600) / 60);
+            const s = totalSeconds % 60;
+            
+            if (h > 0) {
+                return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            }
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        // --- FULLSCREEN FOCUS MODE LOGIC ---
+        function openFullscreen(id) {
+            const timer = timers.find(t => t.id === id);
+            if (!timer) return;
+            
+            activeFullscreenId = id;
+            document.getElementById('fsLabel').innerText = `${timer.icon} ${timer.label}`;
+            
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen().catch(err => console.log("Native fullscreen blocked by browser"));
+            }
+
+            document.getElementById('fullscreenOverlay').style.display = 'flex';
+            updateFullscreenView();
+        }
+
+        function closeFullscreen() {
+            activeFullscreenId = null;
+            document.getElementById('fullscreenOverlay').style.display = 'none';
+            
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            }
+        }
+
+        function updateFullscreenView() {
+            const timer = timers.find(t => t.id === activeFullscreenId);
+            if (timer) {
+                document.getElementById('fsTime').innerText = formatTime(timer.remainingSeconds);
+            }
+        }
+
+        // --- LOG LOGIC ---
+        function logActivity(text) {
+            const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            logs.unshift(`[${timestamp}] ${text}`);
+            if (logs.length > 50) logs.pop(); 
+            saveToLocalStorage();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            const container = document.getElementById('logContainer');
+            container.innerHTML = logs.map(log => `<li>${log}</li>`).join('');
+        }
+
+        // --- GOALS LOGIC ---
+        function addGoal() {
+            const name = document.getElementById('goalName').value || 'Tasks';
+            const target = parseInt(document.getElementById('goalTarget').value) || 10;
+
+            goals.push({ id: Date.now(), name: name, current: 0, target: target });
+            saveToLocalStorage();
+            renderGoals();
+            document.getElementById('goalName').value = '';
+            document.getElementById('goalTarget').value = '';
+        }
+
+        function adjustGoal(id, amount) {
+            const goal = goals.find(g => g.id === id);
+            if (goal) {
+                goal.current = Math.max(0, Math.min(goal.target, goal.current + amount));
+                saveToLocalStorage();
+                renderGoals();
+            }
+        }
+
+        function removeGoal(id) {
+            goals = goals.filter(g => g.id !== id);
+            saveToLocalStorage();
+            renderGoals();
+        }
+
+        function renderGoals() {
+            const container = document.getElementById('goalsContainer');
+            container.innerHTML = '';
+
+            goals.forEach(g => {
+                const percentage = Math.round((g.current / g.target) * 100) || 0;
+                const div = document.createElement('div');
+                div.className = 'goal-item';
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:between; align-items:center; justify-content: space-between;">
+                        <span><strong style="color:var(--sky-blue);">${g.name}</strong> (${g.current}/${g.target})</span>
+                        <div>
+                            <button class="success" style="padding:2px 8px; color:#0f172a;" onclick="adjustGoal(${g.id}, 1)">+</button>
+                            <button style="padding:2px 8px; background-color:#ef4444; color:white;" onclick="adjustGoal(${g.id}, -1)">-</button>
+                            <button style="padding:2px 6px; background:none; color:var(--text-muted);" onclick="removeGoal(${g.id})">🗑️</button>
+                        </div>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-bar" style="width: ${percentage}%"></div>
+                        <div class="progress-text">${percentage}%</div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+    </script>
+</body>
+</html>
