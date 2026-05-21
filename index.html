@@ -96,6 +96,28 @@
         }
         button.icon-btn:hover { background: rgba(255,255,255,0.1); color: white; }
 
+        button.toggle-btn {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-main);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            margin-top: 8px;
+        }
+
+        button.toggle-btn.active {
+            background: rgba(74, 222, 128, 0.18);
+            border-color: rgba(74, 222, 128, 0.45);
+            color: #dcfce7;
+        }
+
+        .wake-lock-note {
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
         input, select {
             padding: 10px;
             background-color: var(--input-bg);
@@ -240,7 +262,11 @@
                     <option value="🏊">🏊 Break</option>
                     <option value="🧠">🧠 Focus</option>
                 </select>
+                <label style="display:inline-flex; align-items:center; gap:6px; margin:0 8px 10px 0; color:var(--text-muted); font-weight:700;">
+                    <input type="checkbox" id="timerStayAwake" style="margin:0;"> Stay Awake
+                </label>
                 <button onclick="addTimer()">Create Timer</button>
+                <div class="wake-lock-note">Wake lock is requested only for timers marked Stay Awake while they run.</div>
 
                 <div class="timers-grid" id="timersContainer"></div>
             </div>
@@ -276,6 +302,7 @@
         let goals = [];
         let logs = [];
         let activeFullscreenId = null;
+        let wakeLock = null;
 
         window.onload = function() {
             if(localStorage.getItem('studyTimer_data')) {
@@ -285,6 +312,8 @@
                 renderGoals();
                 renderLogs();
             }
+
+            document.addEventListener('visibilitychange', handleVisibilityChange);
             setInterval(updateTimers, 1000);
         };
 
@@ -293,12 +322,63 @@
             localStorage.setItem('studyTimer_data', JSON.stringify(data));
         }
 
+        function supportsWakeLock() {
+            return 'wakeLock' in navigator && typeof navigator.wakeLock.request === 'function';
+        }
+
+        async function requestWakeLock() {
+            if (!supportsWakeLock() || document.visibilityState !== 'visible' || wakeLock !== null) {
+                return;
+            }
+
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                wakeLock.addEventListener('release', () => {
+                    wakeLock = null;
+                }, { once: true });
+            } catch (err) {
+                console.error(`Wake lock request failed: ${err.name}, ${err.message}`);
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release()
+                    .catch(err => console.error(`Wake lock release failed: ${err.name}, ${err.message}`))
+                    .finally(() => {
+                        wakeLock = null;
+                    });
+            }
+        }
+
+        async function handleVisibilityChange() {
+            if (document.visibilityState !== 'visible') {
+                releaseWakeLock();
+                return;
+            }
+
+            const shouldKeepAwake = timers.some(timer => timer.isRunning && timer.stayAwake);
+            if (shouldKeepAwake) {
+                await requestWakeLock();
+            }
+        }
+
+        function updateWakeLockState() {
+            const shouldKeepAwake = timers.some(timer => timer.isRunning && timer.stayAwake);
+            if (shouldKeepAwake) {
+                requestWakeLock();
+            } else {
+                releaseWakeLock();
+            }
+        }
+
         // --- TIMER LOGIC ---
         function addTimer() {
             const label = document.getElementById('timerLabel').value || 'Study Session';
             const hrs = parseInt(document.getElementById('timerHours').value) || 0;
             const mins = parseInt(document.getElementById('timerMinutes').value) || 0;
             const icon = document.getElementById('timerIcon').value;
+            const stayAwake = document.getElementById('timerStayAwake').checked;
 
             const totalSecs = (hrs * 3600) + (mins * 60);
 
@@ -313,7 +393,8 @@
                 icon: icon,
                 totalSeconds: totalSecs,
                 remainingSeconds: totalSecs,
-                isRunning: false
+                isRunning: false,
+                stayAwake: stayAwake
             };
 
             timers.push(newTimer);
@@ -322,18 +403,30 @@
             document.getElementById('timerLabel').value = '';
             document.getElementById('timerHours').value = '0';
             document.getElementById('timerMinutes').value = '25';
+            document.getElementById('timerStayAwake').checked = false;
         }
 
         function toggleTimer(id) {
             const timer = timers.find(t => t.id === id);
             if (timer) timer.isRunning = !timer.isRunning;
             renderTimers();
+            updateWakeLockState();
+        }
+
+        function toggleTimerWakeLock(id) {
+            const timer = timers.find(t => t.id === id);
+            if (!timer) return;
+
+            timer.stayAwake = !timer.stayAwake;
+            renderTimers();
+            updateWakeLockState();
         }
 
         function deleteTimer(id) {
             timers = timers.filter(t => t.id !== id);
             if (activeFullscreenId === id) closeFullscreen();
             renderTimers();
+            updateWakeLockState();
         }
 
         function updateTimers() {
@@ -355,6 +448,8 @@
                         if (activeFullscreenId === timer.id) {
                             closeFullscreen();
                         }
+
+                        updateWakeLockState();
                         
                         alert(`⏰ Timer Finished: ${timer.label}!`);
                     }
@@ -388,6 +483,7 @@
                     <strong>${t.label}</strong>
                     <div class="timer-time">${timeString}</div>
                     <button onclick="toggleTimer(${t.id})">${t.isRunning ? 'Pause' : 'Start'}</button>
+                    <button class="toggle-btn ${t.stayAwake ? 'active' : ''}" onclick="toggleTimerWakeLock(${t.id})">${t.stayAwake ? 'Stay Awake: On' : 'Stay Awake: Off'}</button>
                 `;
                 container.appendChild(div);
             });
